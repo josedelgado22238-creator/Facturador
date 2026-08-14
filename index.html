@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CastDel 3D - Bodega Surtida con Secciones y Precios</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050811;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #fff;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            cursor: grab;
+        }
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+
+        /* PANTALLA SELECCIÓN */
+        #selection-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at center, #1e293b 0%, #050811 100%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .main-logo {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            background: linear-gradient(135deg, #0073e6, #ffcc00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            font-style: italic;
+            filter: drop-shadow(0 0 15px rgba(0, 115, 230, 0.6));
+        }
+        .sub-logo {
+            font-size: 13px;
+            color: #38bdf8;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 600;
+        }
+        .cards-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .char-card {
+            background: rgba(15, 23, 42, 0.75);
+            border: 2px solid #1e293b;
+            border-radius: 16px;
+            width: 190px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+        .char-card:hover, .char-card.selected {
+            border-color: #ffcc00;
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(0, 115, 230, 0.4);
+            background: rgba(0, 86, 179, 0.25);
+        }
+        .char-avatar {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            border: 2px solid #ffcc00;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .marcos-avatar { background: #111; }
+        .eva-avatar { background: #003366; }
+        .char-name { font-size: 17px; font-weight: bold; color: #fff; }
+        .char-desc { font-size: 11px; color: #94a3b8; text-align: center; margin-top: 4px; }
+        .btn-start {
+            background: linear-gradient(135deg, #0056b3, #002244);
+            border: 2px solid #ffcc00;
+            color: #fff;
+            padding: 12px 40px;
+            font-size: 15px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,115,230,0.5);
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn-start:active { transform: scale(0.95); }
+
+        /* UI JUEGO */
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 12px 20px;
+        }
+        .interactive { pointer-events: auto; }
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        .stats-bar {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1.5px solid rgba(56, 189, 248, 0.3);
+            border-radius: 12px;
+            padding: 8px 16px;
+            display: flex;
+            gap: 18px;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        .logo-badge {
+            font-size: 18px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #38bdf8, #ffcc00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-style: italic;
+        }
+        .stat-item { display: flex; flex-direction: column; align-items: center; }
+        .stat-label { font-size: 8px; color: #94a3b8; font-weight: 700; text-transform: uppercase; }
+        .stat-value { font-size: 14px; font-weight: bold; color: #f8fafc; }
+        
+        .order-card {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1.5px solid #ffcc00;
+            border-radius: 12px;
+            padding: 8px 14px;
+            min-width: 230px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        .order-title {
+            font-size: 10px;
+            font-weight: bold;
+            color: #ffcc00;
+            margin-bottom: 3px;
+            display: flex;
+            justify-content: space-between;
+            text-transform: uppercase;
+        }
+        .order-item { font-size: 11px; color: #e2e8f0; display: flex; justify-content: space-between; font-weight: 600; }
+
+        .camera-hint {
+            position: absolute;
+            top: 65px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            color: #38bdf8;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+        }
+
+        .bottom-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 100%;
+        }
+        .dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 46px);
+            grid-template-rows: repeat(3, 46px);
+            gap: 4px;
+        }
+        .dbtn {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            color: white;
+            font-weight: bold;
+            backdrop-filter: blur(6px);
+            touch-action: manipulation;
+        }
+        .dbtn:active { background: rgba(0, 115, 230, 0.6); }
+
+        .act-btn {
+            width: 75px;
+            height: 75px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0056b3, #001a33);
+            border: 2px solid #ffcc00;
+            color: white;
+            font-weight: bold;
+            font-size: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+            touch-action: manipulation;
+            text-align: center;
+        }
+        .act-btn:active { transform: scale(0.95); background: #ffcc00; color: #000; }
+
+        #toast {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10b981;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+    </style>
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <!-- PANTALLA SELECCIÓN -->
+    <div id="selection-screen">
+        <div class="main-logo">CASTDEL 3D</div>
+        <div class="sub-logo">Centro Logístico & Distribución</div>
+        <div class="cards-container">
+            <div class="char-card selected" id="card-marcos" onclick="selectCard('marcos')">
+                <div class="char-avatar marcos-avatar">👦</div>
+                <div class="char-name">Marcos</div>
+                <div class="char-desc">Uniforme Negro CastDel</div>
+            </div>
+            <div class="char-card" id="card-eva" onclick="selectCard('eva')">
+                <div class="char-avatar eva-avatar">👧</div>
+                <div class="char-name">Eva</div>
+                <div class="char-desc">Uniforme Azul CastDel</div>
+            </div>
+        </div>
+        <button class="btn-start" onclick="startGame()">Entrar a la Bodega</button>
+    </div>
+
+    <!-- CANVAS THREE.JS -->
+    <div id="canvas-container"></div>
+
+    <!-- HUD -->
+    <div id="ui">
+        <div class="top-bar">
+            <div class="stats-bar interactive">
+                <div class="logo-badge">CASTDEL</div>
+                <div class="stat-item">
+                    <span class="stat-label">Puntos</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Entregas</span>
+                    <span class="stat-value" id="deliveries">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Carga</span>
+                    <span class="stat-value" id="carried">Ninguna</span>
+                </div>
+            </div>
+
+            <div class="order-card interactive">
+                <div class="order-title">
+                    <span>📋 Pedido Activo</span>
+                    <span id="order-timer" style="color:#ef4444;">35s</span>
+                </div>
+                <div class="order-item">
+                    <span id="order-product-name">Cargando...</span>
+                    <span id="order-status" style="color:#ffcc00;">[Pendiente]</span>
+                </div>
+                <div style="font-size: 9px; color: #38bdf8; margin-top: 2px;" id="order-section-name">Sección: -</div>
+            </div>
+        </div>
+
+        <div class="camera-hint">🔄 Arrastra para girar la cámara 360°</div>
+        <div id="toast">¡Acción realizada!</div>
+
+        <div class="bottom-controls">
+            <div class="dpad interactive">
+                <div></div>
+                <div class="dbtn" id="btn-up">▲</div>
+                <div></div>
+                <div class="dbtn" id="btn-left">◄</div>
+                <div class="dbtn" id="btn-down">▼</div>
+                <div class="dbtn" id="btn-right">►</div>
+            </div>
+
+            <div class="action-btns interactive">
+                <div class="act-btn" id="btn-action">TOMAR / SOLTAR</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let playerGroup, headGroup, faceMesh, hairMesh, shirtMesh;
+        let armL, armR, legL, legR;
+        let activeChar = 'marcos';
+        let walkCycle = 0;
+
+        let products = [];
+        let currentOrder = null;
+        let carriedProduct = null;
+        let score = 0;
+        let deliveriesCount = 0;
+        let orderTimer = 35;
+
+        const keys = { up: false, down: false, left: false, right: false };
+        const moveSpeed = 0.14;
+
+        // CATÁLOGO CON SECCIONES Y PRECIOS
+        const CASTDEL_PRODUCTS = [
+            { id: 'desengrasante', name: 'Desengrasante', price: '$8.50', section: 'INDUSTRIAL', color: 0x2563eb, capColor: 0xffffff, shape: 'caneca', shelfPos: { x: -8, z: -5, level: 1.65, side: -1.2 } },
+            { id: 'cloro', name: 'Cloro Max 5L', price: '$4.20', section: 'INDUSTRIAL', color: 0xeab308, capColor: 0x713f12, shape: 'caneca', shelfPos: { x: -8, z: -5, level: 2.85, side: 1.2 } },
+            
+            { id: 'detergente', name: 'Detergente Pro', price: '$6.00', section: 'ASEO Y LIMPIEZA', color: 0x0284c7, capColor: 0x1e40af, shape: 'galon', shelfPos: { x: 8, z: -5, level: 1.65, side: -1.2 } },
+            { id: 'suavizante', name: 'Suavizante', price: '$5.50', section: 'ASEO Y LIMPIEZA', color: 0x38bdf8, capColor: 0xffffff, shape: 'galon', shelfPos: { x: 8, z: -5, level: 2.85, side: 1.2 } },
+
+            { id: 'shampoo_auto', name: 'Shampoo Auto', price: '$7.80', section: 'AUTOMOTRIZ', color: 0xf97316, capColor: 0x7c2d12, shape: 'botella', shelfPos: { x: -8, z: 3, level: 1.65, side: -1.2 } },
+            { id: 'limpiavidrios', name: 'Limpia Vidrios', price: '$3.50', section: 'AUTOMOTRIZ', color: 0x06b6d4, capColor: 0x083344, shape: 'botella', shelfPos: { x: -8, z: 3, level: 2.85, side: 1.2 } }
+        ];
+
+        function selectCard(char) {
+            activeChar = char;
+            document.getElementById('card-marcos').classList.remove('selected');
+            document.getElementById('card-eva').classList.remove('selected');
+            document.getElementById(`card-${char}`).classList.add('selected');
+        }
+
+        function startGame() {
+            document.getElementById('selection-screen').style.display = 'none';
+            init();
+        }
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x090d16);
+            scene.fog = new THREE.FogExp2(0x090d16, 0.02);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 7, 12);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.05;
+            controls.minDistance = 4;
+            controls.maxDistance = 24;
+
+            const ambientLight = new THREE.AmbientLight(0xe0f2fe, 0.7);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1.3);
+            mainLight.position.set(10, 20, 10);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 2048;
+            mainLight.shadow.mapSize.height = 2048;
+            scene.add(mainLight);
+
+            createCeilingLight(-8, -5, 0x38bdf8);
+            createCeilingLight(8, -5, 0x38bdf8);
+            createCeilingLight(-8, 3, 0x38bdf8);
+            createCeilingLight(8, 3, 0x38bdf8);
+            createCeilingLight(0, 8, 0xffcc00);
+
+            buildEleganteWarehouse();
+            createDetailedPlayer();
+            applyCharacterStyle(activeChar);
+            spawnProducts();
+            createNewOrder();
+
+            window.addEventListener('resize', onWindowResize);
+            setupInputControls();
+
+            animate();
+
+            setInterval(() => {
+                if (currentOrder) {
+                    orderTimer--;
+                    document.getElementById('order-timer').innerText = orderTimer + 's';
+                    if (orderTimer <= 0) {
+                        showToast('¡Tiempo agotado! Nuevo pedido.');
+                        createNewOrder();
+                    }
+                }
+            }, 1000);
+        }
+
+        function createCeilingLight(x, z, color) {
+            const light = new THREE.PointLight(color, 0.9, 14);
+            light.position.set(x, 5.5, z);
+            scene.add(light);
+
+            const lamp = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.4, 0.4, 0.1, 16),
+                new THREE.MeshBasicMaterial({ color: color })
+            );
+            lamp.position.set(x, 5.9, z);
+            scene.add(lamp);
+        }
+
+        function buildEleganteWarehouse() {
+            const floorGeo = new THREE.PlaneGeometry(38, 38);
+            const floorMat = new THREE.MeshStandardMaterial({ 
+                color: 0x0f172a, 
+                roughness: 0.15, 
+                metalness: 0.4 
+            });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 });
+            
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(38, 10, 0.5), wallMat);
+            backWall.position.set(0, 5, -19);
+            backWall.receiveShadow = true;
+            scene.add(backWall);
+
+            const sideWallL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 10, 38), wallMat);
+            sideWallL.position.set(-19, 5, 0);
+            scene.add(sideWallL);
+
+            const sideWallR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 10, 38), wallMat);
+            sideWallR.position.set(18, 5, 0);
+            scene.add(sideWallR);
+
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+            const line1 = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 32), lineMat);
+            line1.rotation.x = -Math.PI / 2;
+            line1.position.set(-4, 0.01, 0);
+            scene.add(line1);
+
+            const line2 = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 32), lineMat);
+            line2.rotation.x = -Math.PI / 2;
+            line2.position.set(4, 0.01, 0);
+            scene.add(line2);
+
+            createGiganteCastDelLogo();
+
+            // Estanterías con letreros de sección
+            createModernShelf(-8, -5, "SECCIÓN: INDUSTRIAL", 0xef4444);
+            createModernShelf(8, -5, "SECCIÓN: ASEO Y LIMPIEZA", 0x38bdf8);
+            createModernShelf(-8, 3, "SECCIÓN: AUTOMOTRIZ", 0xf97316);
+            createModernShelf(8, 3, "SECCIÓN: ALMACENAMIENTO", 0x10b981);
+
+            // Mostrador de Despacho
+            const deskGroup = new THREE.Group();
+            const deskGeo = new THREE.BoxGeometry(8, 1.2, 2.2);
+            const deskMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.5, roughness: 0.2 });
+            const desk = new THREE.Mesh(deskGeo, deskMat);
+            desk.position.set(0, 0.6, 11);
+            desk.castShadow = true;
+            desk.receiveShadow = true;
+            deskGroup.add(desk);
+
+            const trimGeo = new THREE.BoxGeometry(8.1, 0.12, 2.3);
+            const trimMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+            const trim = new THREE.Mesh(trimGeo, trimMat);
+            trim.position.set(0, 1.0, 11);
+            deskGroup.add(trim);
+
+            const deskLogoCanvas = document.createElement('canvas');
+            deskLogoCanvas.width = 512;
+            deskLogoCanvas.height = 128;
+            const dctx = deskLogoCanvas.getContext('2d');
+            dctx.fillStyle = '#0284c7';
+            dctx.fillRect(0,0,512,128);
+            dctx.font = 'bold 65px Arial';
+            dctx.fillStyle = '#ffcc00';
+            dctx.textAlign = 'center';
+            dctx.fillText('CASTDEL', 256, 85);
+
+            const deskLogoTex = new THREE.CanvasTexture(deskLogoCanvas);
+            const deskLogoMesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(3.5, 0.8),
+                new THREE.MeshBasicMaterial({ map: deskLogoTex, transparent: true })
+            );
+            deskLogoMesh.position.set(0, 0.6, 9.88);
+            deskLogoMesh.rotation.y = Math.PI;
+            deskGroup.add(deskLogoMesh);
+
+            scene.add(deskGroup);
+
+            const zoneGeo = new THREE.RingGeometry(1.5, 2.2, 32);
+            const zoneMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, side: THREE.DoubleSide });
+            const zone = new THREE.Mesh(zoneGeo, zoneMat);
+            zone.rotation.x = -Math.PI / 2;
+            zone.position.set(0, 0.02, 8.5);
+            scene.add(zone);
+        }
+
+        function createGiganteCastDelLogo() {
+            const logoGroup = new THREE.Group();
+
+            const frameGeo = new THREE.BoxGeometry(14, 4, 0.3);
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8, roughness: 0.2 });
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            logoGroup.add(frame);
+
+            const bgGeo = new THREE.BoxGeometry(13.4, 3.4, 0.32);
+            const bgMat = new THREE.MeshStandardMaterial({ color: 0x003366, metalness: 0.5, roughness: 0.3 });
+            const bg = new THREE.Mesh(bgGeo, bgMat);
+            logoGroup.add(bg);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#002244';
+            ctx.fillRect(0, 0, 1024, 300);
+
+            ctx.strokeStyle = '#ffcc00';
+            ctx.lineWidth = 12;
+            ctx.strokeRect(15, 15, 994, 270);
+
+            ctx.font = 'italic 900 130px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            ctx.fillStyle = '#0073e6';
+            ctx.fillText('CASTDEL', 516, 140);
+            
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillText('CASTDEL', 510, 135);
+
+            ctx.font = 'bold 32px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('LOGÍSTICA & DISTRIBUCIÓN', 510, 220);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const logoPlane = new THREE.Mesh(
+                new THREE.PlaneGeometry(13, 3.2),
+                new THREE.MeshBasicMaterial({ map: texture })
+            );
+            logoPlane.position.z = 0.18;
+            logoGroup.add(logoPlane);
+
+            const logoLight = new THREE.SpotLight(0x38bdf8, 2.5, 20, Math.PI / 4, 0.5);
+            logoLight.position.set(0, 7, -12);
+            logoLight.target = logoGroup;
+            scene.add(logoLight);
+
+            logoGroup.position.set(0, 6.5, -18.6);
+            scene.add(logoGroup);
+        }
+
+        // CREAR ESTANTE CON CARTEL DE SECCIÓN
+        function createModernShelf(x, z, sectionTitle, colorHex) {
+            const group = new THREE.Group();
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.2 });
+            const shelfMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.4 });
+
+            for (let px of [-2.4, 2.4]) {
+                for (let pz of [-1, 1]) {
+                    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.14, 4.8, 0.14), frameMat);
+                    pillar.position.set(px, 2.4, pz);
+                    pillar.castShadow = true;
+                    group.add(pillar);
+                }
+            }
+
+            const shelfLevels = [0.4, 1.6, 2.8, 4.0];
+            for (let py of shelfLevels) {
+                const shelf = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.1, 2.1), shelfMat);
+                shelf.position.set(0, py, 0);
+                shelf.castShadow = true;
+                shelf.receiveShadow = true;
+                group.add(shelf);
+
+                fillShelfLevel(group, py + 0.05);
+            }
+
+            // CARTELES DE SECCIÓN ARRIBA DEL ESTANTE
+            const signCanvas = document.createElement('canvas');
+            signCanvas.width = 512;
+            signCanvas.height = 128;
+            const sctx = signCanvas.getContext('2d');
+            sctx.fillStyle = '#0f172a';
+            sctx.fillRect(0, 0, 512, 128);
+            sctx.strokeStyle = '#' + colorHex.toString(16).padStart(6, '0');
+            sctx.lineWidth = 10;
+            sctx.strokeRect(5, 5, 502, 118);
+            sctx.font = 'bold 36px Arial';
+            sctx.fillStyle = '#ffffff';
+            sctx.textAlign = 'center';
+            sctx.fillText(sectionTitle, 256, 75);
+
+            const signTex = new THREE.CanvasTexture(signCanvas);
+            const signGeo = new THREE.PlaneGeometry(4.2, 1.0);
+            const signMat = new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide });
+            const signMesh = new THREE.Mesh(signGeo, signMat);
+            signMesh.position.set(0, 4.7, 0);
+            group.add(signMesh);
+
+            group.position.set(x, 0, z);
+            scene.add(group);
+        }
+
+        function fillShelfLevel(group, yPos) {
+            const boxColors = [0x94a3b8, 0x0284c7, 0xd97706, 0x475569, 0x2563eb, 0x16a34a];
+            
+            for (let xOffset = -1.9; xOffset <= 1.9; xOffset += 0.65) {
+                for (let zOffset of [-0.45, 0.45]) {
+                    if (Math.random() > 0.3) {
+                        const isBox = Math.random() > 0.4;
+                        let item;
+
+                        if (isBox) {
+                            const boxHeight = 0.35 + Math.random() * 0.25;
+                            const boxMat = new THREE.MeshStandardMaterial({ 
+                                color: boxColors[Math.floor(Math.random() * boxColors.length)],
+                                roughness: 0.5 
+                            });
+                            item = new THREE.Mesh(new THREE.BoxGeometry(0.45, boxHeight, 0.45), boxMat);
+                            item.position.set(xOffset, yPos + boxHeight / 2, zOffset);
+                        } else {
+                            const canMat = new THREE.MeshStandardMaterial({ 
+                                color: boxColors[Math.floor(Math.random() * boxColors.length)],
+                                metalness: 0.3,
+                                roughness: 0.3 
+                            });
+                            item = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.4, 12), canMat);
+                            item.position.set(xOffset, yPos + 0.2, zOffset);
+                        }
+                        
+                        item.castShadow = true;
+                        group.add(item);
+                    }
+                }
+            }
+        }
+
+        function createDetailedPlayer() {
+            playerGroup = new THREE.Group();
+
+            headGroup = new THREE.Group();
+            headGroup.position.y = 1.55;
+
+            const headGeo = new THREE.SphereGeometry(0.28, 32, 32);
+            headGeo.scale(1, 1.15, 1);
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.6 });
+            faceMesh = new THREE.Mesh(headGeo, skinMat);
+            headGroup.add(faceMesh);
+
+            const eyeGeo = new THREE.SphereGeometry(0.045, 16, 16);
+            const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const irisMat = new THREE.MeshBasicMaterial({ color: 0x2d1500 });
+
+            const eyeL = new THREE.Mesh(eyeGeo, eyeWhiteMat);
+            eyeL.position.set(-0.09, 0.04, 0.24);
+            const pupilL = new THREE.Mesh(new THREE.SphereGeometry(0.025, 12, 12), irisMat);
+            pupilL.position.set(-0.09, 0.04, 0.27);
+
+            const eyeR = new THREE.Mesh(eyeGeo, eyeWhiteMat);
+            eyeR.position.set(0.09, 0.04, 0.24);
+            const pupilR = new THREE.Mesh(new THREE.SphereGeometry(0.025, 12, 12), irisMat);
+            pupilR.position.set(0.09, 0.04, 0.27);
+
+            headGroup.add(eyeL, pupilL, eyeR, pupilR);
+
+            const noseGeo = new THREE.ConeGeometry(0.035, 0.09, 12);
+            const nose = new THREE.Mesh(noseGeo, skinMat);
+            nose.position.set(0, -0.01, 0.28);
+            nose.rotation.x = -0.2;
+            headGroup.add(nose);
+
+            const hairGeo = new THREE.BoxGeometry(0.32, 0.15, 0.32);
+            const hairMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+            hairMesh = new THREE.Mesh(hairGeo, hairMat);
+            hairMesh.position.set(0, 0.2, -0.02);
+            headGroup.add(hairMesh);
+
+            playerGroup.add(headGroup);
+
+            const torsoGeo = new THREE.CylinderGeometry(0.26, 0.22, 0.75, 16);
+            shirtMesh = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.7 });
+            const torso = new THREE.Mesh(torsoGeo, shirtMesh);
+            torso.position.y = 0.95;
+            torso.castShadow = true;
+            playerGroup.add(torso);
+
+            const badgeGeo = new THREE.PlaneGeometry(0.18, 0.1);
+            const badgeMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+            const badge = new THREE.Mesh(badgeGeo, badgeMat);
+            badge.position.set(0, 1.05, 0.27);
+            playerGroup.add(badge);
+
+            const armGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.55);
+            armGeo.translate(0, -0.27, 0);
+
+            armL = new THREE.Mesh(armGeo, shirtMesh);
+            armL.position.set(-0.32, 1.2, 0);
+
+            armR = new THREE.Mesh(armGeo, shirtMesh);
+            armR.position.set(0.32, 1.2, 0);
+
+            playerGroup.add(armL, armR);
+
+            const legGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.6);
+            legGeo.translate(0, -0.3, 0);
+            const legMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+
+            legL = new THREE.Mesh(legGeo, legMat);
+            legL.position.set(-0.12, 0.6, 0);
+            legL.castShadow = true;
+
+            legR = new THREE.Mesh(legGeo, legMat);
+            legR.position.set(0.12, 0.6, 0);
+            legR.castShadow = true;
+
+            playerGroup.add(legL, legR);
+
+            playerGroup.position.set(0, 0, 0);
+            scene.add(playerGroup);
+        }
+
+        function applyCharacterStyle(char) {
+            if (char === 'marcos') {
+                faceMesh.material.color.setHex(0xffdbac);
+                shirtMesh.color.setHex(0x111111);
+                hairMesh.scale.set(1, 1, 1);
+                hairMesh.material.color.setHex(0x1a1a1a);
+            } else {
+                faceMesh.material.color.setHex(0x8d5524);
+                shirtMesh.color.setHex(0x003366);
+                hairMesh.scale.set(1.1, 1.6, 1.1);
+                hairMesh.material.color.setHex(0x0d0d0d);
+            }
+        }
+
+        // GENERAR PRODUCTOS CON ETIQUETAS Y PRECIOS
+        function spawnProducts() {
+            products.forEach(p => scene.remove(p.mesh));
+            products = [];
+
+            CASTDEL_PRODUCTS.forEach((prodData) => {
+                const mesh = createProductMesh(prodData);
+                const pos = prodData.shelfPos;
+
+                mesh.position.set(pos.x + pos.side, pos.level, pos.z + 0.3);
+                scene.add(mesh);
+
+                // CREAR CARTEL DE PRECIO EN LA REPISA
+                createPriceTag(pos.x + pos.side, pos.level - 0.22, pos.z + 0.95, prodData.price, prodData.name);
+
+                const glowGeo = new THREE.RingGeometry(0.2, 0.28, 16);
+                const glowMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, side: THREE.DoubleSide });
+                const glow = new THREE.Mesh(glowGeo, glowMat);
+                glow.rotation.x = -Math.PI / 2;
+                glow.position.set(0, 0.01, 0);
+                mesh.add(glow);
+
+                products.push({
+                    data: prodData,
+                    mesh: mesh,
+                    initialPos: mesh.position.clone()
+                });
+            });
+        }
+
+        // CREAR ETIQUETA DE PRECIO EN EL ESTANTE
+        function createPriceTag(x, y, z, price, name) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillRect(0, 0, 256, 128);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(6, 6, 244, 116);
+
+            ctx.font = 'bold 26px Arial';
+            ctx.fillStyle = '#38bdf8';
+            ctx.textAlign = 'center';
+            ctx.fillText(name.substring(0, 14), 128, 42);
+
+            ctx.font = 'bold 44px Arial';
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillText(price, 128, 95);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const tagGeo = new THREE.PlaneGeometry(0.7, 0.35);
+            const tagMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+            const tagMesh = new THREE.Mesh(tagGeo, tagMat);
+
+            tagMesh.position.set(x, y, z);
+            scene.add(tagMesh);
+        }
+
+        // CREAR PRODUCTO CON ETIQUETA CLARA
+        function createProductMesh(prodData) {
+            const group = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: prodData.color, roughness: 0.2, metalness: 0.1 });
+            const capMat = new THREE.MeshStandardMaterial({ color: prodData.capColor });
+
+            if (prodData.shape === 'caneca') {
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.75, 20), bodyMat);
+                body.position.y = 0.38;
+                body.castShadow = true;
+                const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 16), capMat);
+                cap.position.y = 0.79;
+                group.add(body, cap);
+            } else if (prodData.shape === 'galon') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.55, 0.25), bodyMat);
+                body.position.y = 0.28;
+                body.castShadow = true;
+                const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.08, 16), capMat);
+                cap.position.y = 0.59;
+                group.add(body, cap);
+            } else {
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.45, 16), bodyMat);
+                body.position.y = 0.23;
+                body.castShadow = true;
+                const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.1, 0.12, 16), capMat);
+                neck.position.y = 0.51;
+                group.add(body, neck);
+            }
+
+            // DIBUJAR ETIQUETA CON TEXTO
+            const labelCanvas = document.createElement('canvas');
+            labelCanvas.width = 256;
+            labelCanvas.height = 256;
+            const lctx = labelCanvas.getContext('2d');
+
+            lctx.fillStyle = '#ffffff';
+            lctx.fillRect(0, 0, 256, 256);
+            
+            lctx.fillStyle = '#002244';
+            lctx.fillRect(10, 10, 236, 50);
+
+            lctx.font = 'bold 24px Arial';
+            lctx.fillStyle = '#ffcc00';
+            lctx.textAlign = 'center';
+            lctx.fillText('CASTDEL', 128, 43);
+
+            lctx.font = 'bold 26px Arial';
+            lctx.fillStyle = '#0f172a';
+            lctx.fillText(prodData.name.split(' ')[0], 128, 120);
+
+            lctx.font = 'bold 36px Arial';
+            lctx.fillStyle = '#2563eb';
+            lctx.fillText(prodData.price, 128, 190);
+
+            const labelTexture = new THREE.CanvasTexture(labelCanvas);
+            const labelGeo = new THREE.PlaneGeometry(0.24, 0.24);
+            const labelMat = new THREE.MeshBasicMaterial({ map: labelTexture });
+            const label = new THREE.Mesh(labelGeo, labelMat);
+            label.position.set(0, 0.32, 0.18);
+            group.add(label);
+
+            return group;
+        }
+
+        function createNewOrder() {
+            const randomProd = CASTDEL_PRODUCTS[Math.floor(Math.random() * CASTDEL_PRODUCTS.length)];
+            currentOrder = randomProd;
+            orderTimer = 35;
+
+            document.getElementById('order-product-name').innerText = randomProd.name + ' (' + randomProd.price + ')';
+            document.getElementById('order-section-name').innerText = 'Sección: ' + randomProd.section;
+            document.getElementById('order-status').innerText = '[En espera]';
+            document.getElementById('order-status').style.color = '#ffcc00';
+        }
+
+        function handleInteraction() {
+            if (!carriedProduct) {
+                for (let p of products) {
+                    const dist = playerGroup.position.distanceTo(p.mesh.position);
+                    if (dist < 2.0) {
+                        carriedProduct = p;
+                        showToast('Tomaste: ' + p.data.name + ' (' + p.data.price + ')');
+                        document.getElementById('carried').innerText = p.data.name;
+                        break;
+                    }
+                }
+            } else {
+                const distToDelivery = playerGroup.position.distanceTo(new THREE.Vector3(0, 0, 8.5));
+                if (distToDelivery < 2.5) {
+                    if (carriedProduct.data.id === currentOrder.id) {
+                        score += 100 + orderTimer * 2;
+                        deliveriesCount++;
+                        document.getElementById('score').innerText = score;
+                        document.getElementById('deliveries').innerText = deliveriesCount;
+
+                        showToast('¡Entrega Exitosa! +' + (100 + orderTimer * 2) + ' pts');
+                        
+                        carriedProduct.mesh.position.copy(carriedProduct.initialPos);
+                        carriedProduct = null;
+                        document.getElementById('carried').innerText = 'Ninguno';
+                        
+                        createNewOrder();
+                    } else {
+                        showToast('❌ Producto equivocado');
+                    }
+                } else {
+                    carriedProduct.mesh.position.set(playerGroup.position.x, 0.4, playerGroup.position.z);
+                    carriedProduct = null;
+                    document.getElementById('carried').innerText = 'Ninguno';
+                    showToast('Producto soltado');
+                }
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 2200);
+        }
+
+        function setupInputControls() {
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
+                if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = true;
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+                if (e.key === ' ' || e.key === 'e' || e.key === 'E') handleInteraction();
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
+                if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = false;
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+            });
+
+            bindTouch('btn-up', 'up');
+            bindTouch('btn-down', 'down');
+            bindTouch('btn-left', 'left');
+            bindTouch('btn-right', 'right');
+
+            document.getElementById('btn-action').addEventListener('click', handleInteraction);
+            document.getElementById('btn-action').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleInteraction();
+            });
+        }
+
+        function bindTouch(btnId, keyName) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
+            btn.addEventListener('mousedown', () => { keys[keyName] = true; });
+            btn.addEventListener('mouseup', () => { keys[keyName] = false; });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            let moveX = 0;
+            let moveZ = 0;
+
+            if (keys.up) moveZ -= moveSpeed;
+            if (keys.down) moveZ += moveSpeed;
+            if (keys.left) moveX -= moveSpeed;
+            if (keys.right) moveX += moveSpeed;
+
+            const isMoving = (moveX !== 0 || moveZ !== 0);
+
+            if (isMoving) {
+                const cameraAngle = Math.atan2(
+                    camera.position.x - playerGroup.position.x,
+                    camera.position.z - playerGroup.position.z
+                );
+
+                const finalX = moveX * Math.cos(cameraAngle) + moveZ * Math.sin(cameraAngle);
+                const finalZ = -moveX * Math.sin(cameraAngle) + moveZ * Math.cos(cameraAngle);
+
+                playerGroup.position.x += finalX;
+                playerGroup.position.z += finalZ;
+
+                const angle = Math.atan2(finalX, finalZ);
+                playerGroup.rotation.y = angle;
+
+                playerGroup.position.x = Math.max(-17, Math.min(17, playerGroup.position.x));
+                playerGroup.position.z = Math.max(-17, Math.min(17, playerGroup.position.z));
+
+                walkCycle += 0.2;
+                legL.rotation.x = Math.sin(walkCycle) * 0.6;
+                legR.rotation.x = -Math.sin(walkCycle) * 0.6;
+
+                if (!carriedProduct) {
+                    armL.rotation.x = -Math.sin(walkCycle) * 0.5;
+                    armR.rotation.x = Math.sin(walkCycle) * 0.5;
+                }
+            } else {
+                legL.rotation.x = 0;
+                legR.rotation.x = 0;
+                if (!carriedProduct) {
+                    armL.rotation.x = 0;
+                    armR.rotation.x = 0;
+                }
+            }
+
+            if (carriedProduct) {
+                armL.rotation.x = -Math.PI / 3;
+                armR.rotation.x = -Math.PI / 3;
+                carriedProduct.mesh.position.set(
+                    playerGroup.position.x + Math.sin(playerGroup.rotation.y) * 0.45,
+                    playerGroup.position.y + 0.9,
+                    playerGroup.position.z + Math.cos(playerGroup.rotation.y) * 0.45
+                );
+            }
+
+            controls.target.set(playerGroup.position.x, playerGroup.position.y + 1.2, playerGroup.position.z);
+            controls.update();
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
